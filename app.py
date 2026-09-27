@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-FixItTT - Complete Version
+FixItTT - Complete Version with Distance Sorting
 Customers: no account needed
 Providers: must register & login
-Full Provider Dashboard + Leads system
 """
 
-"""from flask import (Flask, render_template_string, request, redirect,
-                   url_for, flash, g, session)"""
 from flask import (Flask, render_template_string, request, redirect,
                    url_for, flash, g, session, get_flashed_messages)
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
 import secrets
+import math
 from datetime import datetime
 from functools import wraps
 
@@ -38,6 +36,69 @@ SERVICES = [
     "Cleaning Services", "Security / CCTV Install", "Locksmith", "Glass / Windows",
     "Masonry / Concrete", "Pool Maintenance"
 ]
+
+# Approximate center coordinates for Trinidad & Tobago areas
+AREA_COORDS = {
+    "Port of Spain": (10.6549, -61.5019),
+    "San Fernando": (10.2796, -61.4675),
+    "Chaguanas": (10.5167, -61.4167),
+    "Arima": (10.6370, -61.2823),
+    "Tunapuna": (10.6520, -61.3880),
+    "Couva": (10.4220, -61.4500),
+    "Point Fortin": (10.1742, -61.6841),
+    "Sangre Grande": (10.5870, -61.1300),
+    "Princes Town": (10.2667, -61.3833),
+    "Diego Martin": (10.7167, -61.5667),
+    "Marabella": (10.3000, -61.4500),
+    "Tobago - Scarborough": (11.1833, -60.7333),
+    "Tobago - Crown Point": (11.1500, -60.8500),
+    "Tobago - Plymouth": (11.2167, -60.7833),
+    "Mayaro": (10.2500, -61.0000),
+    "Siparia": (10.1333, -61.5000),
+    "Penal": (10.1667, -61.4500),
+    "Gasparillo": (10.3167, -61.4167),
+    "Arouca": (10.6333, -61.3333),
+    "Curepe": (10.6333, -61.4000),
+    "St. Augustine": (10.6410, -61.4000),
+    "Trincity": (10.6333, -61.3500),
+    "Valsayn": (10.6333, -61.4167),
+    "Westmoorings": (10.6833, -61.5500),
+    "Woodbrook": (10.6667, -61.5167),
+    "Belmont": (10.6667, -61.5000),
+    "Laventille": (10.6500, -61.5000),
+    "Morvant": (10.6500, -61.4833),
+    "Barataria": (10.6500, -61.4500),
+    "San Juan": (10.6500, -61.4500),
+    "All Trinidad": (10.6918, -61.2225),
+}
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat/2)**2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon/2)**2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
+
+def get_area_coords(area_name):
+    return AREA_COORDS.get(area_name, (10.6918, -61.2225))
+
+def provider_distance(provider, customer_area):
+    cust_lat, cust_lon = get_area_coords(customer_area)
+    provider_areas = [a.strip() for a in (provider["areas"] or "").split(",")]
+    if not provider_areas:
+        return 9999
+    if "all trinidad" in [a.lower() for a in provider_areas]:
+        return 0
+    min_dist = 9999
+    for pa in provider_areas:
+        coords = get_area_coords(pa)
+        dist = haversine(cust_lat, cust_lon, coords[0], coords[1])
+        if dist < min_dist:
+            min_dist = dist
+    return min_dist
 
 # ---------------------------------------------------------------------------
 # Database
@@ -107,84 +168,64 @@ def init_db():
     count = db.execute("SELECT COUNT(*) FROM providers").fetchone()[0]
     if count == 0:
         demo = [
-            # (business_name, contact_name, phone, whatsapp, email, password, service, areas, description, rating, is_featured)
             ("QuickFix Plumbing", "Rajesh Singh", "868-555-0101", "8685550101", "rajesh@quickfix.tt",
              generate_password_hash("password123"), "Plumber", "Chaguanas,Couva,San Fernando",
              "24/7 emergency plumbing. Burst pipes, blocked drains, water heaters.", 4.8, 1),
-
             ("CoolAir TT", "Maria Dookeran", "868-555-0202", "8685550202", "maria@coolair.tt",
              generate_password_hash("password123"), "AC Repair / HVAC", "Port of Spain,Diego Martin,Westmoorings,Woodbrook",
              "Residential & commercial AC installation and repair. Same-day service.", 4.9, 1),
-
             ("Sparky Electrical", "Devon Charles", "868-555-0303", "8685550303", "devon@sparky.tt",
              generate_password_hash("password123"), "Electrician", "Arima,Tunapuna,Arouca,Trincity",
              "Licensed electrician. Wiring, panels, outlets, generators.", 4.7, 0),
-
             ("WeldMasters", "Kevin Ali", "868-555-0404", "8685550404", "kevin@weldmasters.tt",
              generate_password_hash("password123"), "Welder", "San Fernando,Point Fortin,Princes Town,Gasparillo",
              "Gates, railings, structural welding, trailer repairs.", 4.6, 0),
-
             ("HandyPro Central", "Aisha Mohammed", "868-555-0505", "8685550505", "aisha@handypro.tt",
              generate_password_hash("password123"), "Handyman", "Chaguanas,Couva,Valsayn,Curepe",
              "Furniture assembly, minor repairs, painting touch-ups, odd jobs.", 4.5, 0),
-
             ("CaribCarpentry", "Leroy Baptiste", "868-555-0606", "8685550606", "leroy@caribcarp.tt",
              generate_password_hash("password123"), "Carpenter", "Port of Spain,Belmont,Laventille,San Juan",
              "Custom cabinets, doors, flooring, built-ins.", 4.8, 1),
-
             ("PaintPro TT", "Sharon Joseph", "868-555-0707", "8685550707", "sharon@paintpro.tt",
              generate_password_hash("password123"), "Painter", "Arima,Sangre Grande,Tunapuna",
              "Interior/exterior painting. Free quotes.", 4.4, 0),
-
             ("TileRight", "Marcus Persad", "868-555-0808", "8685550808", "marcus@tileright.tt",
              generate_password_hash("password123"), "Tiler", "San Fernando,Marabella,Princes Town",
              "Floor & wall tiling. Bathrooms, kitchens, outdoor.", 4.7, 0),
-
             ("ApplianceFix 868", "Nalini Rampersad", "868-555-0909", "8685550909", "nalini@appliancefix.tt",
              generate_password_hash("password123"), "Appliance Repair", "Chaguanas,Port of Spain,San Fernando",
              "Washers, dryers, fridges, stoves. Home service.", 4.6, 0),
-
             ("AutoMech Express", "Ricky Seepersad", "868-555-1010", "8685551010", "ricky@automech.tt",
              generate_password_hash("password123"), "Auto Mechanic", "Couva,Chaguanas,Point Fortin",
              "Mobile mechanic. Diagnostics, brakes, AC, engines.", 4.5, 0),
-
             ("GenPower Repairs", "Trevor Khan", "868-555-1111", "8685551111", "trevor@genpower.tt",
              generate_password_hash("password123"), "Generator Repair", "All Trinidad",
              "Honda, Yamaha, diesel gens. On-site repairs.", 4.8, 1),
-
             ("RoofGuard TT", "Patricia Williams", "868-555-1212", "8685551212", "pat@roofguard.tt",
              generate_password_hash("password123"), "Roofing", "Diego Martin,Port of Spain,Westmoorings",
              "Leak repairs, new roofs, gutters. Insurance claims help.", 4.7, 0),
-
             ("GreenThumb Landscaping", "Andre Roberts", "868-555-1313", "8685551313", "andre@greenthumb.tt",
              generate_password_hash("password123"), "Landscaping / Gardening",
              "Tobago - Scarborough,Tobago - Crown Point,Tobago - Plymouth",
              "Lawn care, tree trimming, garden design. Tobago only.", 4.9, 0),
-
             ("PestAway TT", "Sunita Maharaj", "868-555-1414", "8685551414", "sunita@pestaway.tt",
              generate_password_hash("password123"), "Pest Control", "Port of Spain,San Fernando,Chaguanas,Arima",
              "Termites, rodents, mosquitoes. Safe treatments.", 4.6, 0),
-
             ("Sparkle Clean", "Michelle George", "868-555-1515", "8685551515", "michelle@sparkle.tt",
              generate_password_hash("password123"), "Cleaning Services", "Port of Spain,Woodbrook,Westmoorings,Diego Martin",
              "Deep cleaning, office, post-construction.", 4.5, 0),
-
             ("SecureCam Install", "Jason Lee", "868-555-1616", "8685551616", "jason@securecam.tt",
              generate_password_hash("password123"), "Security / CCTV Install", "All Trinidad",
              "CCTV, alarms, access control. Free site survey.", 4.8, 1),
-
             ("KeyMaster Locksmith", "Omar Hosein", "868-555-1717", "8685551717", "omar@keymaster.tt",
              generate_password_hash("password123"), "Locksmith", "Chaguanas,Couva,San Fernando,Arima",
              "24/7 lockouts, rekeying, security doors.", 4.7, 0),
-
             ("ClearView Glass", "Lisa Chen", "868-555-1818", "8685551818", "lisa@clearview.tt",
              generate_password_hash("password123"), "Glass / Windows", "Port of Spain,Tunapuna,Arima",
              "Window replacement, glass doors, shower enclosures.", 4.6, 0),
-
             ("SolidBuild Masonry", "David Ramlal", "868-555-1919", "8685551919", "david@solidbuild.tt",
              generate_password_hash("password123"), "Masonry / Concrete", "San Fernando,Princes Town,Mayaro",
              "Driveways, walls, foundations, plastering.", 4.5, 0),
-
             ("PoolCare Pro", "Angela Beckles", "868-555-2020", "8685552020", "angela@poolcare.tt",
              generate_password_hash("password123"), "Pool Maintenance", "Westmoorings,Diego Martin,Port of Spain",
              "Weekly service, repairs, chemical balancing.", 4.9, 1),
@@ -278,14 +319,10 @@ footer{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.85rem}
 .provider-list li{background:#fff;border-radius:var(--radius);padding:1rem;margin-bottom:.75rem;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;flex-wrap:wrap;gap:.75rem;justify-content:space-between}
 .section-title{font-size:1.25rem;margin:1.5rem 0 1rem}
 .empty{text-align:center;padding:2rem;color:var(--muted)}
-table{width:100%;border-collapse:collapse;font-size:.9rem}
-th,td{padding:.6rem .5rem;text-align:left;border-bottom:1px solid var(--border)}
-th{background:#f1f3f5;font-weight:600}
 """
 
 def page(content, title="FixItTT"):
     provider = get_current_provider()
-    nav = ""
     if provider:
         nav = f"""
         <a href="{url_for('provider_dashboard')}">Dashboard</a>
@@ -390,50 +427,91 @@ def request_service():
         req_id = cur.lastrowid
         db.commit()
 
+        # ---------- Optimized Matching + Distance Sorting ----------
         providers = db.execute(
-            "SELECT * FROM providers WHERE service=? AND is_active=1 ORDER BY is_featured DESC, rating DESC",
+            """SELECT * FROM providers 
+               WHERE service = ? AND is_active = 1 
+               ORDER BY is_featured DESC, rating DESC""",
             (service,)
         ).fetchall()
 
         matches = []
+        other_providers = []
+        customer_area_lower = area.lower()
+
         for p in providers:
             areas_list = [a.strip().lower() for a in (p["areas"] or "").split(",")]
-            if area.lower() in areas_list or "all trinidad" in areas_list:
+            if customer_area_lower in areas_list or "all trinidad" in areas_list:
                 matches.append(p)
                 db.execute(
                     "INSERT INTO leads (request_id, provider_id, status, notified_at) VALUES (?,?, 'New', ?)",
                     (req_id, p["id"], datetime.utcnow().isoformat())
                 )
+            else:
+                other_providers.append(p)
+
         db.commit()
 
-        # Build matches HTML
+        # Sort other providers by distance (closest first)
+        if other_providers:
+            other_providers.sort(key=lambda p: provider_distance(p, area))
+
+        # ----- Build results HTML -----
+        def provider_card(p, show_area=False, show_distance=False):
+            wa = p["whatsapp"] or ""
+            wa_link = (
+                f"https://wa.me/1{wa}?text=Hi%2C%20I%20found%20you%20on%20FixItTT.%20"
+                f"I%20need%20help%20with%20{service}%20in%20{area}."
+            ) if wa else "#"
+            featured = '<span class="badge badge-featured">Featured</span>' if p["is_featured"] else ""
+            extra = ""
+            if show_area:
+                extra += f"<div style='color:var(--muted);font-size:.9rem'>Serves: {p['areas']}</div>"
+            if show_distance:
+                dist = provider_distance(p, area)
+                extra += f"<div style='color:var(--muted);font-size:.85rem'>Approx. {dist:.1f} km away</div>"
+            return f"""
+            <li>
+              <div>
+                <h3>{p['business_name']} {featured}
+                  <span class="badge badge-rating">★ {p['rating']}</span></h3>
+                <div style="color:var(--muted);font-size:.9rem">{p['service']}</div>
+                {extra}
+                <p style="margin:.4rem 0">{p['description'] or ''}</p>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <a class="btn btn-whatsapp btn-sm" target="_blank" href="{wa_link}">WhatsApp</a>
+                <a class="btn btn-outline btn-sm" href="tel:{p['phone']}">Call</a>
+              </div>
+            </li>"""
+
         if matches:
-            items = ""
-            for p in matches:
-                wa = p["whatsapp"] or ""
-                wa_link = f"https://wa.me/1{wa}?text=Hi%2C%20I%20found%20you%20on%20FixItTT.%20I%20need%20help%20with%20{service}%20in%20{area}." if wa else "#"
-                featured = '<span class="badge badge-featured">Featured</span>' if p["is_featured"] else ""
-                items += f"""
-                <li>
-                  <div>
-                    <h3>{p['business_name']} {featured}
-                      <span class="badge badge-rating">★ {p['rating']}</span></h3>
-                    <div style="color:var(--muted);font-size:.9rem">{p['service']} · {p['areas']}</div>
-                    <p style="margin:.4rem 0">{p['description'] or ''}</p>
-                  </div>
-                  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                    <a class="btn btn-whatsapp btn-sm" target="_blank" href="{wa_link}">WhatsApp</a>
-                    <a class="btn btn-outline btn-sm" href="tel:{p['phone']}">Call</a>
-                  </div>
-                </li>"""
-            matches_html = f"<ul class='provider-list'>{items}</ul>"
+            items = "".join(provider_card(p) for p in matches)
+            matches_html = f"""
+            <h3 style="margin-bottom:1rem">Providers available in {area}</h3>
+            <ul class="provider-list">{items}</ul>
+            """
         else:
-            matches_html = "<div class='card empty'>No providers matched this area yet. Your request has been saved.</div>"
+            matches_html = f"""
+            <div class="card empty">
+              <p>No providers currently match <strong>{area}</strong> for <strong>{service}</strong>.</p>
+              <p style="margin-top:0.5rem">Your request has been saved. Here are the closest {service} providers:</p>
+            </div>
+            """
+            if other_providers:
+                other_items = "".join(
+                    provider_card(p, show_area=True, show_distance=True)
+                    for p in other_providers[:10]
+                )
+                matches_html += f"""
+                <h3 class="section-title">Closest {service} providers</h3>
+                <ul class="provider-list">{other_items}</ul>
+                """
 
         content = f"""
         <div class="hero" style="text-align:left">
           <h1>Matching Providers</h1>
-          <p>We found <strong>{len(matches)}</strong> pro(s) for <strong>{service}</strong> in <strong>{area}</strong>.</p>
+          <p>Request for <strong>{service}</strong> in <strong>{area}</strong></p>
           <p style="color:var(--muted)">Your tracking code: <strong>{tracking}</strong></p>
         </div>
         {matches_html}
@@ -558,7 +636,7 @@ def find_providers():
     return page(content, "Find Pros – FixItTT")
 
 # ---------------------------------------------------------------------------
-# PROVIDER AUTH
+# PROVIDER AUTH + DASHBOARD (same as before)
 # ---------------------------------------------------------------------------
 @app.route("/provider/register", methods=["GET", "POST"])
 def provider_register():
@@ -689,9 +767,6 @@ def provider_logout():
     flash("Logged out.", "info")
     return redirect(url_for("index"))
 
-# ---------------------------------------------------------------------------
-# PROVIDER DASHBOARD
-# ---------------------------------------------------------------------------
 @app.route("/provider/dashboard")
 @login_required
 def provider_dashboard():
@@ -707,7 +782,7 @@ def provider_dashboard():
     }
 
     recent = db.execute("""
-        SELECT l.*, r.service, r.area, r.urgency, r.description, r.customer_name, r.customer_phone, r.created_at as req_time
+        SELECT l.*, r.service, r.area, r.urgency, r.description, r.customer_name, r.customer_phone
         FROM leads l
         JOIN requests r ON l.request_id = r.id
         WHERE l.provider_id = ?
@@ -739,7 +814,7 @@ def provider_dashboard():
       <div class="stat-card"><div class="num">{stats['won']}</div><div class="label">Won</div></div>
     </div>
     <h2 class="section-title">Recent Leads</h2>
-    {rows if rows else '<div class="card empty">No leads yet. They will appear here when customers request your service.</div>'}
+    {rows if rows else '<div class="card empty">No leads yet.</div>'}
     <div style="margin-top:1rem">
       <a href="{url_for('provider_leads')}" class="btn btn-outline">View All Leads</a>
     </div>
@@ -811,13 +886,10 @@ def provider_lead_detail(lead_id):
         flash("Lead not found.", "danger")
         return redirect(url_for("provider_leads"))
 
-    # Mark as viewed
     if lead["status"] == "New":
         db.execute("UPDATE leads SET status='Viewed', viewed_at=? WHERE id=?",
                    (datetime.utcnow().isoformat(), lead_id))
         db.commit()
-        lead = dict(lead)
-        lead["status"] = "Viewed"
 
     if request.method == "POST":
         new_status = request.form.get("status", lead["status"])
@@ -828,7 +900,7 @@ def provider_lead_detail(lead_id):
         flash("Lead updated.", "success")
         return redirect(url_for("provider_lead_detail", lead_id=lead_id))
 
-    wa = lead["customer_phone"].replace("-", "").replace(" ", "")
+    wa = (lead["customer_phone"] or "").replace("-", "").replace(" ", "")
     wa_link = f"https://wa.me/1{wa}?text=Hi%2C%20I%20received%20your%20request%20on%20FixItTT%20regarding%20{lead['service']}."
 
     status_opts = ""
@@ -962,7 +1034,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     print("=" * 55)
-    print("  FixItTT – Full Version")
+    print("  FixItTT – Full Version with Distance Sorting")
     print(f"  http://127.0.0.1:{port}")
     print("  Demo login: rajesh@quickfix.tt / password123")
     print("=" * 55)
