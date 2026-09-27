@@ -107,26 +107,87 @@ def init_db():
     count = db.execute("SELECT COUNT(*) FROM providers").fetchone()[0]
     if count == 0:
         demo = [
-            ("QuickFix Plumbing", "Rajesh Singh", "868-555-0101", "8685550101",
-             "rajesh@quickfix.tt", generate_password_hash("password123"),
-             "Plumber", "Chaguanas,Couva,San Fernando",
+            # (business_name, contact_name, phone, whatsapp, email, password, service, areas, description, rating, is_featured)
+            ("QuickFix Plumbing", "Rajesh Singh", "868-555-0101", "8685550101", "rajesh@quickfix.tt",
+             generate_password_hash("password123"), "Plumber", "Chaguanas,Couva,San Fernando",
              "24/7 emergency plumbing. Burst pipes, blocked drains, water heaters.", 4.8, 1),
-            ("CoolAir TT", "Maria Dookeran", "868-555-0202", "8685550202",
-             "maria@coolair.tt", generate_password_hash("password123"),
-             "AC Repair / HVAC", "Port of Spain,Diego Martin,Westmoorings,Woodbrook",
-             "Residential & commercial AC. Same-day service.", 4.9, 1),
-            ("Sparky Electrical", "Devon Charles", "868-555-0303", "8685550303",
-             "devon@sparky.tt", generate_password_hash("password123"),
-             "Electrician", "Arima,Tunapuna,Arouca,Trincity",
-             "Licensed electrician. Wiring, panels, outlets.", 4.7, 0),
-            ("WeldMasters", "Kevin Ali", "868-555-0404", "8685550404",
-             "kevin@weldmasters.tt", generate_password_hash("password123"),
-             "Welder", "San Fernando,Point Fortin,Princes Town",
-             "Gates, railings, structural welding.", 4.6, 0),
-            ("HandyPro Central", "Aisha Mohammed", "868-555-0505", "8685550505",
-             "aisha@handypro.tt", generate_password_hash("password123"),
-             "Handyman", "Chaguanas,Couva,Valsayn,Curepe",
-             "Furniture assembly, minor repairs, odd jobs.", 4.5, 0),
+
+            ("CoolAir TT", "Maria Dookeran", "868-555-0202", "8685550202", "maria@coolair.tt",
+             generate_password_hash("password123"), "AC Repair / HVAC", "Port of Spain,Diego Martin,Westmoorings,Woodbrook",
+             "Residential & commercial AC installation and repair. Same-day service.", 4.9, 1),
+
+            ("Sparky Electrical", "Devon Charles", "868-555-0303", "8685550303", "devon@sparky.tt",
+             generate_password_hash("password123"), "Electrician", "Arima,Tunapuna,Arouca,Trincity",
+             "Licensed electrician. Wiring, panels, outlets, generators.", 4.7, 0),
+
+            ("WeldMasters", "Kevin Ali", "868-555-0404", "8685550404", "kevin@weldmasters.tt",
+             generate_password_hash("password123"), "Welder", "San Fernando,Point Fortin,Princes Town,Gasparillo",
+             "Gates, railings, structural welding, trailer repairs.", 4.6, 0),
+
+            ("HandyPro Central", "Aisha Mohammed", "868-555-0505", "8685550505", "aisha@handypro.tt",
+             generate_password_hash("password123"), "Handyman", "Chaguanas,Couva,Valsayn,Curepe",
+             "Furniture assembly, minor repairs, painting touch-ups, odd jobs.", 4.5, 0),
+
+            ("CaribCarpentry", "Leroy Baptiste", "868-555-0606", "8685550606", "leroy@caribcarp.tt",
+             generate_password_hash("password123"), "Carpenter", "Port of Spain,Belmont,Laventille,San Juan",
+             "Custom cabinets, doors, flooring, built-ins.", 4.8, 1),
+
+            ("PaintPro TT", "Sharon Joseph", "868-555-0707", "8685550707", "sharon@paintpro.tt",
+             generate_password_hash("password123"), "Painter", "Arima,Sangre Grande,Tunapuna",
+             "Interior/exterior painting. Free quotes.", 4.4, 0),
+
+            ("TileRight", "Marcus Persad", "868-555-0808", "8685550808", "marcus@tileright.tt",
+             generate_password_hash("password123"), "Tiler", "San Fernando,Marabella,Princes Town",
+             "Floor & wall tiling. Bathrooms, kitchens, outdoor.", 4.7, 0),
+
+            ("ApplianceFix 868", "Nalini Rampersad", "868-555-0909", "8685550909", "nalini@appliancefix.tt",
+             generate_password_hash("password123"), "Appliance Repair", "Chaguanas,Port of Spain,San Fernando",
+             "Washers, dryers, fridges, stoves. Home service.", 4.6, 0),
+
+            ("AutoMech Express", "Ricky Seepersad", "868-555-1010", "8685551010", "ricky@automech.tt",
+             generate_password_hash("password123"), "Auto Mechanic", "Couva,Chaguanas,Point Fortin",
+             "Mobile mechanic. Diagnostics, brakes, AC, engines.", 4.5, 0),
+
+            ("GenPower Repairs", "Trevor Khan", "868-555-1111", "8685551111", "trevor@genpower.tt",
+             generate_password_hash("password123"), "Generator Repair", "All Trinidad",
+             "Honda, Yamaha, diesel gens. On-site repairs.", 4.8, 1),
+
+            ("RoofGuard TT", "Patricia Williams", "868-555-1212", "8685551212", "pat@roofguard.tt",
+             generate_password_hash("password123"), "Roofing", "Diego Martin,Port of Spain,Westmoorings",
+             "Leak repairs, new roofs, gutters. Insurance claims help.", 4.7, 0),
+
+            ("GreenThumb Landscaping", "Andre Roberts", "868-555-1313", "8685551313", "andre@greenthumb.tt",
+             generate_password_hash("password123"), "Landscaping / Gardening",
+             "Tobago - Scarborough,Tobago - Crown Point,Tobago - Plymouth",
+             "Lawn care, tree trimming, garden design. Tobago only.", 4.9, 0),
+
+            ("PestAway TT", "Sunita Maharaj", "868-555-1414", "8685551414", "sunita@pestaway.tt",
+             generate_password_hash("password123"), "Pest Control", "Port of Spain,San Fernando,Chaguanas,Arima",
+             "Termites, rodents, mosquitoes. Safe treatments.", 4.6, 0),
+
+            ("Sparkle Clean", "Michelle George", "868-555-1515", "8685551515", "michelle@sparkle.tt",
+             generate_password_hash("password123"), "Cleaning Services", "Port of Spain,Woodbrook,Westmoorings,Diego Martin",
+             "Deep cleaning, office, post-construction.", 4.5, 0),
+
+            ("SecureCam Install", "Jason Lee", "868-555-1616", "8685551616", "jason@securecam.tt",
+             generate_password_hash("password123"), "Security / CCTV Install", "All Trinidad",
+             "CCTV, alarms, access control. Free site survey.", 4.8, 1),
+
+            ("KeyMaster Locksmith", "Omar Hosein", "868-555-1717", "8685551717", "omar@keymaster.tt",
+             generate_password_hash("password123"), "Locksmith", "Chaguanas,Couva,San Fernando,Arima",
+             "24/7 lockouts, rekeying, security doors.", 4.7, 0),
+
+            ("ClearView Glass", "Lisa Chen", "868-555-1818", "8685551818", "lisa@clearview.tt",
+             generate_password_hash("password123"), "Glass / Windows", "Port of Spain,Tunapuna,Arima",
+             "Window replacement, glass doors, shower enclosures.", 4.6, 0),
+
+            ("SolidBuild Masonry", "David Ramlal", "868-555-1919", "8685551919", "david@solidbuild.tt",
+             generate_password_hash("password123"), "Masonry / Concrete", "San Fernando,Princes Town,Mayaro",
+             "Driveways, walls, foundations, plastering.", 4.5, 0),
+
+            ("PoolCare Pro", "Angela Beckles", "868-555-2020", "8685552020", "angela@poolcare.tt",
+             generate_password_hash("password123"), "Pool Maintenance", "Westmoorings,Diego Martin,Port of Spain",
+             "Weekly service, repairs, chemical balancing.", 4.9, 1),
         ]
         for p in demo:
             db.execute("""INSERT INTO providers
